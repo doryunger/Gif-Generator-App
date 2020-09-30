@@ -1,0 +1,44 @@
+{
+  "name": "react-hooks-file-upload",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/jest-dom": "^4.2.4",
+    "@testing-library/react": "^9.3.2",
+    "@testing-library/user-event": "^7.1.2",
+    "axios": "^0.19.2",
+    "bootstrap": "^4.5.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-scripts": "3.4.1",
+    "express": "4.17.1 ",
+    "csv-string": "4.0.1",
+    "multer": "1.4.2",
+    "form-data": "3.0.0",
+    "node-fetch": "2.6.1",
+    "js-to-ts-converter": "0.16.3",
+    "@types/node": "12.12.2",
+    "@types/react-dom": "16.0.5"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "tsc  && GENERATE_SOURCEMAP=false react-scripts build  --max-old-space-size=4096 ",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

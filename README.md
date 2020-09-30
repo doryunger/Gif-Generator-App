@@ -12,3 +12,6 @@ React has beed used for the Frontend.
 The app receiving a video file as an input and returns a gif image.
 The app supports most of the video files.
 Files should weight below 6 MB (for a reasonable time of conversion) and also be smaller than 1300 pixels (for the same reason). 
+
+
+![gifgen](images/gifgen.gif)

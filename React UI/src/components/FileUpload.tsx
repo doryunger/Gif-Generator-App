@@ -2,18 +2,15 @@ import React, { useState, useEffect } from "react";
 import UploadService from "../services/FileUploadService";
 
 const supportedTypes=['video','Video']
+//Declaring a 'single source of truth' object which manage the derived states between elements
+//The objects stores the states in accordance of the 3 phases of the application:
+//1. Pre progress 2. In progress 3. post progress
+const stateStore={'Pre-Progress':{"message":"","btnStatus":true,"progress":0,"progressBar":"hidden","imageDisplay":"hidden","source":"","waitingStat":"hidden","currentFile":undefined,"selectedFiles":undefined},'In-Progress':{"btnStatus":true,"progressBar":"visible","source":"","waitingStat":"visible"},'Post-Progress':{"progressBar":"hidden","progress":100,"imageDisplay":"visible","waitingStat":"hidden","selectedFiles":undefined}};
+
 //Defining hooks for varaibles
 const UploadFiles = () => {
-  const [selectedFiles, setSelectedFiles] = useState(undefined);
-  const [currentFile, setCurrentFile] = useState(undefined);
-  const [progress, setProgress] = useState(0);
-  const [message, setMessage] = useState("");
-  const [srcy, setSrc] = useState("");
-  const [fileInfos, setFileInfos] = useState([]);
-  const [displayMode, setDisplay] = useState("hidden");
+  const [progressState, setProgressState]=useState(stateStore["Pre-Progress"])
   const [btnStatus, setStatus] = useState(true);
-  const [imgDis, setDis] = useState('hidden');
-  const [waitingStat, setWaitstat] = useState('hidden');
 
   //Checks if the chosen file is valid
   const selectFile = (event) => {
@@ -23,8 +20,9 @@ const UploadFiles = () => {
     type=type.substring(0,type.search("/"));
     console.log(type);
     if (size<6 && supportedTypes.includes(type)){
-      setSelectedFiles(event.target.files);
+      stateStore["Pre-Progress"]["selectedFiles"]=event.target.files;
       setStatus(false);
+      setProgressState(stateStore["Pre-Progress"]);
     }
     else{
       if (size>6){
@@ -35,44 +33,55 @@ const UploadFiles = () => {
         alert('File type not supported')
         
       }
-      setSelectedFiles(undefined);
       setStatus(true);
     }
 
   };
+  //A custom hook that triggered whenever an upload process should take place
+  //The hook spawn a useCallback hook to prevent useless re-rendering of child components 
+  const useUploadHook = useCallback(async () => {
+    //If no file has been selected it doesn't allow the upload process to commence and returning the same state
+    if (progressState["selectedFiles"]==undefined)return
+        await upload(progressState["selectedFiles"][0]);
+        stateStore["Pre-Progress"]["selectedFiles"]=undefined;
+    }, [progressState["selectedFiles"]]) 
+      
   //If the file is valid it gets uploaded to the server
-  const upload = () => {
-    let currentFile = selectedFiles[0];
+  const upload = (file) => {
+    let currentFile = file;
     setStatus(true);
-    setProgress(0);
-    setMessage("");
-    setCurrentFile(currentFile);
-    setDisplay("visible");
-    setWaitstat('visible');
+    stateStore["Pre-Progress"]["currentFile"]=currentFile;
+    setProgressState(stateStore["Pre-Progress"]);
     //A call for /upload API ot convert the video into a GIF file
     UploadService.upload(currentFile, (event) => {
-      setProgress(Math.round((50 * event.loaded) / event.total));
+      if (Math.round((50 * event.loaded) / event.total)>1){
+        stateStore["In-Progress"]["progress"]=Math.round((50 * event.loaded) / event.total);
+        setProgressState(stateStore["In-Progress"]);
+      }
     })
     //If the process went successfully a response with a binary representation of the image returns
       .then((response) => {
-        setDis('visible');
-        setWaitstat('hidden');
-        setProgress(100)
-        setSrc(response.data);
-        setTimeout(function(){
-          setProgress(0);
-          setDisplay("hidden");
-      },1000) 
+        stateStore["Post-Progress"]["source"]=response.data;
+        setProgressState(stateStore["Post-Progress"]);
+        if(response.status==500){
+          stateStore["Post-Progress"]["progress"]=0;
+          stateStore["Post-Progress"]["message"]=response.data;
+          setProgressState(stateStore["Post-Progress"]);
+          alert(response.data);
+        }
+        setStatus(true);
       })
       //Catch block in case of an error
       .catch(() => {
-        setProgress(0);
-         setDisplay("hidden");
-         setWaitstat('hidden');
-         setMessage("File could not be processed ");
-         alert("File could not be processed");
+        stateStore["Post-Progress"]["progress"]=0;
+        stateStore["Post-Progress"]["message"]="Could not upload the file!";
+        setProgressState(stateStore["Post-Progress"]);
+        setTimeout(function(){
+          stateStore["Pre-Progress"]["currentFile"]=undefined;
+          setProgressState(stateStore["Pre-Progress"]);
+          setStatus(true);
+      },1500) 
       });
-    setSelectedFiles(undefined);
   };
 
   return (
@@ -85,33 +94,33 @@ const UploadFiles = () => {
       <button
         className="btn btn-success"
         disabled={btnStatus}
-        onClick={upload}
+        onClick={useUploadHook}
       >
         Upload
       </button>
 
       <div className="alert alert-light" role="alert">
-        {message}
+        {progressState["message"]}
       </div>
-      <img id="waiting" src="https://i.imgur.com/6377s3E.gif" style={{position: 'relative',visibility:`${waitingStat}`}}></img>
-      {currentFile && (
-        <div className="progress" style={{visibility:` ${displayMode}`}}>
+      <img id="waiting" src="https://i.imgur.com/6377s3E.gif" style={{position: 'relative',visibility:`${progressState["waitingStat"]}`}}></img>
+      {(
+        <div className="progress" style={{visibility:` ${progressState["progressBar"]}`}}>
           <div
             className="progress-bar progress-bar-info progress-bar-striped"
             role="progressbar"
-            aria-valuenow={progress}
+            aria-valuenow={progressState["progress"]}
             aria-valuemin="0"
             aria-valuemax="100"
-            style={{ width: progress + "%" }}
+            style={{ width: progressState["progres"] + "%" }}
           >
-            {progress}%
+            {progressState["progress"]}%
           </div>
         </div>
       )}
       <div className="card" >
         <div className="card-header" > GIF Output</div>
         <div className="gifDisplay">
-        <img src={`data:image/gif;base64,${srcy}`}  style={{visibility:` ${imgDis}`}} ></img>
+        <img src={`data:image/gif;base64,${progressState["source"]}`}  style={{visibility:` ${imgDis}`}} ></img>
         </div>
         </div>
       </div>

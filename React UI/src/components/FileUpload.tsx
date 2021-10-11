@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState,useCallback } from "react";
 import UploadService from "../services/FileUploadService";
+import { connect, useSelector, useDispatch } from 'react-redux'
+import {updateValues,selectedStatusObject} from '../createStateSlice'
 
 const supportedTypes=['video','Video']
 //Declaring a 'single source of truth' object which manage the derived states between elements
 //The objects stores the states in accordance of the 3 phases of the application:
 //1. Pre progress 2. In progress 3. post progress
-const stateStore={'Pre-Progress':{"message":"","btnStatus":true,"progress":0,"progressBar":"hidden","imageDisplay":"hidden","source":"","waitingStat":"hidden","currentFile":undefined,"selectedFiles":undefined},'In-Progress':{"btnStatus":true,"progressBar":"visible","source":"","waitingStat":"visible"},'Post-Progress':{"progressBar":"hidden","progress":100,"imageDisplay":"visible","waitingStat":"hidden","selectedFiles":undefined}};
 
 //Defining hooks for varaibles
-const UploadFiles = () => {
-  const [progressState, setProgressState]=useState(stateStore["Pre-Progress"])
+const UploadFiles = (props) => {
+  //Declaring a selector object for pulling out data from the state store of Redux
+  const progressStore = useSelector((state) => state.appProgress.value)
+  const dispatch = useDispatch()
+  
   const [btnStatus, setStatus] = useState(true);
 
   //Checks if the chosen file is valid
@@ -18,11 +22,10 @@ const UploadFiles = () => {
     let size=file.size/1024/1024;
     let type=file.type;
     type=type.substring(0,type.search("/"));
-    console.log(type);
     if (size<6 && supportedTypes.includes(type)){
-      stateStore["Pre-Progress"]["selectedFiles"]=event.target.files;
       setStatus(false);
-      setProgressState(stateStore["Pre-Progress"]);
+      dispatch(updateValues({"Pre-Progress":{"selectedFiles":event.target.files}}));
+      dispatch(selectedStatusObject("Pre-Progress"))
     }
     else{
       if (size>6){
@@ -41,49 +44,47 @@ const UploadFiles = () => {
   //The hook spawn a useCallback hook to prevent useless re-rendering of child components 
   const useUploadHook = useCallback(async () => {
     //If no file has been selected it doesn't allow the upload process to commence and returning the same state
-    if (progressState["selectedFiles"]==undefined)return
-        await upload(progressState["selectedFiles"][0]);
-        stateStore["Pre-Progress"]["selectedFiles"]=undefined;
-    }, [progressState["selectedFiles"]]) 
+    if (progressStore["currentStore"]["selectedFiles"]==undefined)return
+        await upload(progressStore["currentStore"]["selectedFiles"][0]);
+        dispatch(updateValues({"Pre-Progress":{"selectedFiles":undefined}}));
+    }, [progressStore["currentStore"]["selectedFiles"]]) 
       
   //If the file is valid it gets uploaded to the server
   const upload = (file) => {
     let currentFile = file;
     setStatus(true);
-    stateStore["Pre-Progress"]["currentFile"]=currentFile;
-    setProgressState(stateStore["Pre-Progress"]);
+    dispatch(updateValues({"Pre-Progress":{"currentFile":currentFile}}));
+    dispatch(selectedStatusObject("Pre-Progress"));
     //A call for /upload API ot convert the video into a GIF file
     UploadService.upload(currentFile, (event) => {
       if (Math.round((50 * event.loaded) / event.total)>1){
-        stateStore["In-Progress"]["progress"]=Math.round((50 * event.loaded) / event.total);
-        setProgressState(stateStore["In-Progress"]);
+        dispatch(updateValues({"In-Progress":{"progress":Math.round((50 * event.loaded) / event.total)}}));
+        dispatch(selectedStatusObject("In-Progress"));
       }
     })
     //If the process went successfully a response with a binary representation of the image returns
       .then((response) => {
-        stateStore["Post-Progress"]["source"]=response.data;
-        setProgressState(stateStore["Post-Progress"]);
+        dispatch(updateValues({"Post-Progress":{"source":response.data}}));
+        dispatch(selectedStatusObject("Post-Progress"));
         if(response.status==500){
-          stateStore["Post-Progress"]["progress"]=0;
-          stateStore["Post-Progress"]["message"]=response.data;
-          setProgressState(stateStore["Post-Progress"]);
+          dispatch(updateValues({"Post-Progress":{"progress":0,"message":response.data}}));
+          dispatch(selectedStatusObject("Post-Progress"));
           alert(response.data);
         }
         setStatus(true);
       })
       //Catch block in case of an error
       .catch(() => {
-        stateStore["Post-Progress"]["progress"]=0;
-        stateStore["Post-Progress"]["message"]="Could not upload the file!";
-        setProgressState(stateStore["Post-Progress"]);
+        dispatch(updateValues({"Post-Progress":{"progress":0,"message":"Could not upload the file!"}}));
+        dispatch(selectedStatusObject("Post-Progress"));
+        setStatus(true);
         setTimeout(function(){
-          stateStore["Pre-Progress"]["currentFile"]=undefined;
-          setProgressState(stateStore["Pre-Progress"]);
+          dispatch(updateValues({"Pre-Progress":{"currentFile":undefined}}));
+          dispatch(selectedStatusObject("Pre-Progress"));
           setStatus(true);
       },1500) 
       });
   };
-
   return (
     <div>
      
@@ -100,31 +101,44 @@ const UploadFiles = () => {
       </button>
 
       <div className="alert alert-light" role="alert">
-        {progressState["message"]}
+        {props.messge}
       </div>
-      <img id="waiting" src="https://i.imgur.com/6377s3E.gif" style={{position: 'relative',visibility:`${progressState["waitingStat"]}`}}></img>
+      <img id="waiting" src="https://i.imgur.com/iH6Z31k.gif" style={{position: 'relative', left:'40%',visibility:`${props.waitingStat}`,width:'150px',height:'100px'}}></img>
       {(
-        <div className="progress" style={{visibility:` ${progressState["progressBar"]}`}}>
+        <div className="progress" style={{visibility:`${props.progressBar}`}}>
           <div
             className="progress-bar progress-bar-info progress-bar-striped"
             role="progressbar"
-            aria-valuenow={progressState["progress"]}
+            aria-valuenow={props.progress}
             aria-valuemin="0"
             aria-valuemax="100"
-            style={{ width: progressState["progres"] + "%" }}
+            style={{ width: `${props.progress}` + "%" }}
           >
-            {progressState["progress"]}%
+            {props.progress}%
           </div>
         </div>
       )}
       <div className="card" >
         <div className="card-header" > GIF Output</div>
         <div className="gifDisplay">
-        <img src={`data:image/gif;base64,${progressState["source"]}`}  style={{visibility:` ${imgDis}`}} ></img>
+        <img src={`data:image/gif;base64,${props.source}`}  style={{visibility:` ${props.imageDisplay}`}} ></img>
         </div>
         </div>
       </div>
   );
 };
 
-export default UploadFiles;
+const mapStateToProps = function(state) {
+ 
+  return {
+    message:state.appProgress.value.currentStore.message,
+    progressBar: state.appProgress.value.currentStore.progressBar,
+    progress: state.appProgress.value.currentStore.progress,
+    waitingStat: state.appProgress.value.currentStore.waitingStat,
+    source:state.appProgress.value.currentStore.source,
+    imageDisplay: state.appProgress.value.currentStore.imageDisplay
+    
+  }
+}
+
+export default connect(mapStateToProps)(UploadFiles);

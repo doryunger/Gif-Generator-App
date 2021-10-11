@@ -124,6 +124,6 @@ USE_TZ = True
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, 'uploader', "build", "static"),
 )
-STATIC_URL = '/ass/static/'
+STATIC_URL = '/app/static/'
 STATIC_ROOT= '/opt/bitnami/apps/giff/gif/static/'
 CORS_ORIGIN_ALLOW_ALL = True

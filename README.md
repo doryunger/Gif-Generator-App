@@ -6,7 +6,8 @@ The app utilizes an API of  [GIF generator](https://github.com/doryunger/gogif) 
 
 ## Overview
 The backend of the app is based on Python (Django) which is wrapped by Gunicorn and Gevent.
-React has beed used for the Frontend. 
+React + Redux have been used for the Frontend.
+The conversion of the video files is using the following [API](https://github.com/doryunger/gogif)
 
 ## Useage
 The app receiving a video file as an input and returns a gif image.
